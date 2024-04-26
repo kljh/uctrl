@@ -94,6 +94,8 @@ int main(void)
   MX_DMA_Init();
   MX_ADC1_Init();
   /* USER CODE BEGIN 2 */
+  for (uint32_t i=0; i<ADC_BUF_LEN; i++)
+	  adc_buf[i] = 0;
   HAL_ADC_Start_DMA(&hadc1, (uint32_t*)adc_buf, ADC_BUF_LEN);
 
   uint32_t elapsed_time_ms = HAL_GetTick();
@@ -107,6 +109,7 @@ int main(void)
     // Toggle PC13 LED when buffer has been filled (potentially a few time)
     if (adc_buf_filled != 0) {
       HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
+      raw = ((uint8_t*)adc_buf)[0];
       elapsed_time_ms = HAL_GetTick();
       adc_buf_filled = 0;
     }
@@ -189,7 +192,7 @@ static void MX_ADC1_Init(void)
   */
   hadc1.Instance = ADC1;
   hadc1.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV2;
-  hadc1.Init.Resolution = ADC_RESOLUTION_12B;
+  hadc1.Init.Resolution = ADC_RESOLUTION_8B;
   hadc1.Init.ScanConvMode = DISABLE;
   hadc1.Init.ContinuousConvMode = ENABLE;
   hadc1.Init.DiscontinuousConvMode = DISABLE;
