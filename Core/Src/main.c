@@ -115,6 +115,11 @@ int main(void)
   for (uint32_t i=0; i<usb_adc_buf_len; i++)
 	  usb_adc_buf[i] = 0;
   HAL_ADC_Start_DMA(&hadc1, (uint32_t*)(usb_adc_buf + USB_HEADER_LEN), ADC_BUFFER_LEN);
+
+  // PWM with 30% duty cycle
+  TIM2->CCR1 = 30;
+  HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
