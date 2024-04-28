@@ -35,6 +35,19 @@ uint8_t usb_adc_status()
 	else if (hadc1.Init.Resolution == ADC_RESOLUTION_6B)
 		adc_resolution = 6;
 
+	int adc_prescaler_div = 2;
+	if (hadc1.Init.ClockPrescaler == ADC_CLOCK_SYNC_PCLK_DIV2)
+		adc_prescaler_div = 2;
+	else if (hadc1.Init.ClockPrescaler == ADC_CLOCK_SYNC_PCLK_DIV4)
+		adc_prescaler_div = 4;
+	else if (hadc1.Init.ClockPrescaler == ADC_CLOCK_SYNC_PCLK_DIV6)
+		adc_prescaler_div = 6;
+	else if (hadc1.Init.ClockPrescaler == ADC_CLOCK_SYNC_PCLK_DIV8)
+		adc_prescaler_div = 8;
+
+	int apb2_freq_Hz = 16000000;
+	int adc_samples_per_second_theo = apb2_freq_Hz / adc_prescaler_div / (3+adc_resolution);
+
 	// hadc1.Init.DataAlign
 
 	int nbChars = snprintf(usb_msg, usb_msg_max_len, "\n"
@@ -43,12 +56,14 @@ uint8_t usb_adc_status()
 			"USB_ERROR\t%s\n"
 			"ADC_RESOLUTION\t%i\n"
 			"ADC_SAMPLE_PER_SEC\t%i\n"
+			"ADC_SAMPLE_PER_SEC_APB2_16MHz\t%i\n"
 			,
 			(int)usb_adc_transmitting,
 			(int)usb_adc_buf_len,
 			(char*)usb_error,
 			(int)adc_resolution,
-			(int)adc_samples_per_second
+			(int)adc_samples_per_second,
+			(int)adc_samples_per_second_theo
 			);
 
 	usb_status = CDC_Transmit_FS(usb_msg, nbChars);
