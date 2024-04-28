@@ -31,7 +31,7 @@
 
 /* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
-
+uint8_t cdc_line_coding_buffer[7];
 /* USER CODE END PV */
 
 /** @addtogroup STM32_USB_OTG_DEVICE_LIBRARY
@@ -109,7 +109,7 @@ uint8_t UserTxBufferFS[APP_TX_DATA_SIZE];
 extern USBD_HandleTypeDef hUsbDeviceFS;
 
 /* USER CODE BEGIN EXPORTED_VARIABLES */
-
+uint8_t usb_cdc_initialised = 0;
 /* USER CODE END EXPORTED_VARIABLES */
 
 /**
@@ -220,11 +220,15 @@ static int8_t CDC_Control_FS(uint8_t cmd, uint8_t* pbuf, uint16_t length)
   /* 6      | bDataBits  |   1   | Number Data bits (5, 6, 7, 8 or 16).          */
   /*******************************************************************************/
     case CDC_SET_LINE_CODING:
-
+    	for (int i=0; i<7; i++)
+    		cdc_line_coding_buffer[i] = pbuf[i];
+    	usb_cdc_initialised = 1;
     break;
 
     case CDC_GET_LINE_CODING:
-
+    	for (int i=0; i<7; i++)
+    		pbuf[i] = cdc_line_coding_buffer[i];
+    	usb_cdc_initialised = 2;
     break;
 
     case CDC_SET_CONTROL_LINE_STATE:
@@ -263,6 +267,17 @@ static int8_t CDC_Receive_FS(uint8_t* Buf, uint32_t *Len)
   /* USER CODE BEGIN 6 */
   USBD_CDC_SetRxBuffer(&hUsbDeviceFS, &Buf[0]);
   USBD_CDC_ReceivePacket(&hUsbDeviceFS);
+
+  // altered echo
+  // if (Len > 0) Buf[0] = Buf[0] + 1;
+  // CDC_Transmit_FS(Buf, *Len);
+
+  // interpret incoming message
+  usb_adc_receive(Buf, *Len);
+
+  // transmit upon receive
+  // usb_adc_transmit(0);
+
   return (USBD_OK);
   /* USER CODE END 6 */
 }
@@ -311,6 +326,10 @@ static int8_t CDC_TransmitCplt_FS(uint8_t *Buf, uint32_t *Len, uint8_t epnum)
   UNUSED(Buf);
   UNUSED(Len);
   UNUSED(epnum);
+
+  // transmit next chunk (if any)
+  usb_adc_transmit(1);
+
   /* USER CODE END 13 */
   return result;
 }

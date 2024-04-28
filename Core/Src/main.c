@@ -22,7 +22,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "usbd_cdc_if.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -32,7 +32,9 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define ADC_BUF_LEN 4096
+// ADC BUFFER LENGTH = 4096*2 (12 bit resolution) or 8192*1 (8 bit resolution)
+#define USB_HEADER_LEN 8
+#define ADC_BUFFER_LEN 8192
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -45,9 +47,19 @@ ADC_HandleTypeDef hadc1;
 DMA_HandleTypeDef hdma_adc1;
 
 /* USER CODE BEGIN PV */
-uint16_t adc_buf[ADC_BUF_LEN];
-uint16_t adc_buf_filled = 0;
-uint16_t adc_buf_filled_count = 0;
+
+// USB BUFFER LENGTH = ADC COUNT (4) + TIMESTAMP MS (4) + ADC_BUF_LEN
+
+const uint32_t usb_adc_buf_len = USB_HEADER_LEN + ADC_BUFFER_LEN;
+const uint32_t usb_adc_buf_len_1 = USB_HEADER_LEN + (ADC_BUFFER_LEN >> 1);
+const uint32_t usb_adc_buf_len_2 = (ADC_BUFFER_LEN >> 1);
+
+uint8_t  usb_adc_buf[USB_HEADER_LEN + ADC_BUFFER_LEN];
+
+uint32_t adc_samples_per_second = 0;
+uint16_t adc_buf_local_count = 0;  // count the number of buffers called during one iteration
+uint32_t adc_buf_total_count = 0;  // count the number of buffers since start
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -96,26 +108,34 @@ int main(void)
   MX_ADC1_Init();
   MX_USB_DEVICE_Init();
   /* USER CODE BEGIN 2 */
-  for (uint32_t i=0; i<ADC_BUF_LEN; i++)
-	  adc_buf[i] = 0;
-  HAL_ADC_Start_DMA(&hadc1, (uint32_t*)adc_buf, ADC_BUF_LEN);
-
-  uint32_t elapsed_time_ms = HAL_GetTick();
-  uint16_t raw = 0;
+  for (uint32_t i=0; i<usb_adc_buf_len; i++)
+	  usb_adc_buf[i] = 0;
+  HAL_ADC_Start_DMA(&hadc1, (uint32_t*)(usb_adc_buf + USB_HEADER_LEN), ADC_BUFFER_LEN);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    // Toggle PC13 LED when buffer has been filled (potentially a few time)
-    if (adc_buf_filled != 0) {
+    // Toggle PC13 LED when buffer has been filled (potentially filled a few time)
+    if (adc_buf_local_count != 0) {
+      // Toggle LED when ADC is operating
       HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
-      raw = ((uint8_t*)adc_buf)[0];
-      elapsed_time_ms = HAL_GetTick();
-      adc_buf_filled = 0;
+
+      // Get a sample from ADC buffer
+      // raw = ((uint8_t*)(adc_buf))[0];
+
+      // uint32_t elapsed_time_ms = HAL_GetTick();
+
+      // measure sample per seconds
+      uint32_t sps = adc_buf_local_count * ADC_BUFFER_LEN;
+      if (hadc1.Init.Resolution == ADC_RESOLUTION_12B || hadc1.Init.Resolution == ADC_RESOLUTION_10B)
+    	  sps = sps >> 1;
+      adc_samples_per_second = sps;
+
+      adc_buf_local_count = 0;
     }
-    HAL_Delay(1000);
+    HAL_Delay(1000);  // wait a second
 
     /*
     // Get a single ADC value
@@ -278,14 +298,31 @@ static void MX_GPIO_Init(void)
 
 // Called when first half of buffer is filled
 void HAL_ADC_ConvHalfCpltCallback(ADC_HandleTypeDef* hadc) {
-    // HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_SET);
+	// sending buffer first half
+	if (usb_adc_transmitting == 2)
+	{
+		usb_adc_transmitting = 1;
+		usb_adc_transmit(0);
+	}
 }
 
 // Called when buffer is completely filled
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc) {
-    // HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
-	adc_buf_filled++;
-	adc_buf_filled_count++;
+	adc_buf_local_count++;
+	adc_buf_total_count++;
+
+	// write counter and timestamp at beginning of USB ADC buffer
+	uint32_t* uintPtr = (uint32_t*)usb_adc_buf;
+	uintPtr[0] = adc_buf_total_count;
+	uintPtr[1] = HAL_GetTick();
+
+	// sending buffer second half
+	if (usb_adc_transmitting == 1)
+	{
+		usb_adc_transmitting = 2;
+		usb_adc_transmit(0);
+	}
+
 }
 
 /* USER CODE END 4 */

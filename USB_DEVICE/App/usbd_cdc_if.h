@@ -93,6 +93,13 @@
 extern USBD_CDC_ItfTypeDef USBD_Interface_fops_FS;
 
 /* USER CODE BEGIN EXPORTED_VARIABLES */
+extern uint8_t usb_cdc_initialised;
+
+// NOT TRANSMITTING (0), BUFFER FIRST HALF (1), BUFFER SECOND HALF (2)
+// USB Host switches between 'not transmitting' and 'transmitting'
+// ADC Events switch between first and second half
+// USB ADC errors switches back to 'not transmitting' (USB busy / too slow)
+extern uint8_t usb_adc_transmitting;
 
 /* USER CODE END EXPORTED_VARIABLES */
 
@@ -109,6 +116,9 @@ uint8_t CDC_Transmit_FS(uint8_t* Buf, uint16_t Len);
 
 /* USER CODE BEGIN EXPORTED_FUNCTIONS */
 
+uint8_t usb_adc_status();
+uint8_t usb_adc_receive(uint8_t* buf, uint32_t *buf_len);
+uint8_t usb_adc_transmit(uint8_t next_chunk);
 /* USER CODE END EXPORTED_FUNCTIONS */
 
 /**
