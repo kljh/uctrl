@@ -1,6 +1,7 @@
 // #include "main.h"
 // #include "usb_device.h"
 #include "usbd_cdc_if.h"
+#include "lz4.h"
 
 extern ADC_HandleTypeDef hadc1;
 extern DMA_HandleTypeDef hdma_adc1;
@@ -95,7 +96,7 @@ uint8_t usb_adc_receive(uint8_t* buf, uint32_t *buf_len_ptr)
 
 uint8_t usb_adc_transmit(uint8_t next_chunk)
 {
-	// When start new buffer (e.g. sending the first chnk of the buffer), next_chunk is 0.
+	// When start new buffer (e.g. sending the first chunk of the buffer), next_chunk is 0.
 	// When called to transfer subsequent chunks, next_chunk is 1.
 	// We expect to be done transmitting all chunks before seeing, next_chunk = 0 again
 	// (otherwise it means transmission over USB is too slow, either >12Mbps or limited by host)
@@ -126,8 +127,16 @@ uint8_t usb_adc_transmit(uint8_t next_chunk)
 			snprintf(usb_error, usb_error_max_len, "TOO FAST");
 
 			return USBD_BUSY;
-		} else {
+		}
+		else
+		{
+			// start transmission
 			usb_adc_chunk = 0;
+
+			// compress data
+			const char *src = "abcabcdef is the b-a ba of alphabet";
+			char dst[120];
+			int nbUsedBytes = LZ4_compress_default(src, dst, strlen(src), sizeof(dst));
 		}
 	}
 

@@ -7,8 +7,7 @@ USB 2.0 Fullspeed specification is 12 megabits per second, or 1.5 MBytes per sec
 STM32 microcontrollers should be able to sample an analogic and stream ait over USB at up to 1.5 Megasamples per second.
 The project below was tested using internal STM32F401 oscilator as 725 kSample per second, or 300 kHz bandwidth.
 
-Not quite an oscilloscope yet , but not bad for a £10 board.
-
+Higher bandwith over USB can be achieved through USB 2.0 HighSpeed (480 Mbps) or through fast compression algorithm.
 
 # STM32 MCU
 
@@ -82,6 +81,15 @@ Pinout & Config
     TIM2->CCR1 = 30;
     HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
 
+
+# Enabling external oscillator
+
+Rationale:
+ - more accurate/stable frequency for USB communications
+ - higher MCU clock
+
+Pinout & Config
+ - Under TImers / TIM2 / Mode
 
 
 Refs:
